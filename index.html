@@ -111,7 +111,7 @@
     const colDetune = [0, 300, 500, 700, 1000, 1200]; // cents
 
     // Lowpass filter: left col = open/bright, right col = dark/muffled (log scale)
-    const colFreq = [20000, 8000, 3000, 1200, 600, 400]; // Hz
+    const colFreq = [20000, 14000, 8000, 4000, 2000, 1000]; // Hz
 
     function playWoodbell(detune, freq) {
       if (!audioCtx || !woodbellBuffer) return;
