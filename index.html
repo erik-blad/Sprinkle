@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Morphing Grid</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -49,9 +50,21 @@
       background-image:
         linear-gradient(rgba(0, 255, 136, 0.25) 1px, transparent 1px),
         linear-gradient(90deg, rgba(0, 255, 136, 0.25) 1px, transparent 1px);
-      background-size: 28px 28px;
+      background-size: 9px 9px;
       filter: drop-shadow(0 0 6px #00ff88);
       transition: opacity 0.8s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #overlay span {
+      font-family: 'Space Mono', monospace;
+      font-size: clamp(14px, 2vmin, 20px);
+      color: #ffffff;
+      letter-spacing: 0.15em;
+      text-transform: lowercase;
+      pointer-events: none;
     }
 
     #overlay.hidden {
@@ -62,7 +75,7 @@
 </head>
 <body>
 
-  <div id="overlay"></div>
+  <div id="overlay"><span>click me</span></div>
   <div class="grid"></div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
