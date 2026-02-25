@@ -40,10 +40,29 @@
     .shape.hovered {
       filter: drop-shadow(0 0 18px currentColor) drop-shadow(0 0 42px currentColor);
     }
+
+    #overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      cursor: pointer;
+      background-image:
+        linear-gradient(rgba(0, 255, 136, 0.25) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 255, 136, 0.25) 1px, transparent 1px);
+      background-size: 28px 28px;
+      filter: drop-shadow(0 0 6px #00ff88);
+      transition: opacity 0.8s ease;
+    }
+
+    #overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
   </style>
 </head>
 <body>
 
+  <div id="overlay"></div>
   <div class="grid"></div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
@@ -63,14 +82,20 @@
       }
     }
 
-    // Unlock AudioContext on first valid user gesture
+    // Unlock AudioContext and dismiss overlay on first valid user gesture
+    const overlay = document.getElementById('overlay');
     ['mousedown', 'touchstart', 'keydown'].forEach(evt => {
-      document.addEventListener(evt, initAudio, { once: true });
+      document.addEventListener(evt, () => {
+        overlay.classList.add('hidden');
+        initAudio();
+      }, { once: true });
     });
 
-    // Dorian mode: 1, b3, 4, 5, 6, b7 (semitones: 0, 3, 5, 7, 9, 10)
-    // Top row = highest pitch, bottom row = lowest
+    // Dorian mode rows: top = highest, bottom = lowest (semitones: 0, 3, 5, 7, 9, 10)
     const rowDetune = [1000, 900, 700, 500, 300, 0]; // cents
+
+    // Dorian mode cols: left = lowest, right = highest (semitones: 0, 2, 3, 5, 7, 9)
+    const colDetune = [0, 200, 300, 500, 700, 900]; // cents
 
     // Lowpass filter: left col = open/bright, right col = dark/muffled (log scale)
     const colFreq = [20000, 8000, 3000, 1000, 400, 150]; // Hz
@@ -118,13 +143,13 @@
       const col = i % COLS;
 
       svg.addEventListener('mouseenter', () => {
-        initAudio().then(() => playWoodbell(rowDetune[row], colFreq[col]));
+        initAudio().then(() => playWoodbell(rowDetune[row] + colDetune[col], colFreq[col]));
         anime.remove(path);
         anime({
           targets: path,
           d: starPath,
           color: white,
-          duration: 200,
+          duration: 100,
           easing: 'easeOutQuad'
         });
         path.classList.add('hovered');
