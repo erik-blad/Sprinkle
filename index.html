@@ -177,8 +177,8 @@
         <input type="range" id="filter-strength" min="0" max="100" value="100">
       </div>
       <div class="panel-row">
-        <div class="panel-label">reverb <span id="reverb-val">0%</span></div>
-        <input type="range" id="reverb-level" min="0" max="100" value="0">
+        <div class="panel-label">reverb <span id="reverb-val">50%</span></div>
+        <input type="range" id="reverb-level" min="0" max="100" value="50">
       </div>
     </div>
     <div class="panel-section">
@@ -204,7 +204,7 @@
 
     // Panel state
     let filterStrength = 1.0;
-    let reverbWet = 0.0;
+    let reverbWet = 0.5;
 
     function buildIR(ctx) {
       const length = ctx.sampleRate * 3;
