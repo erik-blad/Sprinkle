@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Morphing Grid</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #0f0f0f;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100dvh;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 3px;
+    }
+
+    .grid svg {
+      width: clamp(60px, 15vmin, 100px);
+      height: clamp(60px, 15vmin, 100px);
+      display: block;
+      cursor: pointer;
+    }
+
+    .shape {
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 3;
+      stroke-linecap: round;
+      filter: drop-shadow(0 0 6px currentColor) drop-shadow(0 0 14px currentColor);
+      transition: filter 0.3s ease;
+    }
+
+    .shape.hovered {
+      filter: drop-shadow(0 0 18px currentColor) drop-shadow(0 0 42px currentColor);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="grid"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+  <script>
+    let audioCtx = null;
+    let woodbellBuffer = null;
+
+    async function initAudio() {
+      if (audioCtx) return;
+      audioCtx = new AudioContext();
+      const response = await fetch('WoodBell-Clean.wav');
+      const arrayBuffer = await response.arrayBuffer();
+      woodbellBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+    }
+
+    // Dorian mode: 1, b3, 4, 5, 6, b7 (semitones: 0, 3, 5, 7, 9, 10)
+    // Top row = highest pitch, bottom row = lowest
+    const rowDetune = [1000, 900, 700, 500, 300, 0]; // cents
+
+    // Lowpass filter: left col = open/bright, right col = dark/muffled (log scale)
+    const colFreq = [20000, 8000, 3000, 1000, 400, 150]; // Hz
+
+    function playWoodbell(detune, freq) {
+      if (!audioCtx || !woodbellBuffer) return;
+      const source = audioCtx.createBufferSource();
+      source.buffer = woodbellBuffer;
+      source.detune.value = detune;
+
+      const filter = audioCtx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.value = freq;
+
+      source.connect(filter);
+      filter.connect(audioCtx.destination);
+      source.start();
+    }
+
+    const COLS = 6;
+    const ROWS = 6;
+
+    const circlePath = 'M 0 -150 C 83 -150 150 -83 150 0 C 150 83 83 150 0 150 C -83 150 -150 83 -150 0 C -150 -83 -83 -150 0 -150 Z';
+    const starPath   = 'M 0 -150 C 15 -15 15 -15 150 0 C 15 15 15 15 0 150 C -15 15 -15 15 -150 0 C -15 -15 -15 -15 0 -150 Z';
+
+    const green = '#00ff88';
+    const white = '#ffffff';
+
+    const grid = document.querySelector('.grid');
+    const ns = 'http://www.w3.org/2000/svg';
+
+    for (let i = 0; i < COLS * ROWS; i++) {
+      const svg = document.createElementNS(ns, 'svg');
+      svg.setAttribute('viewBox', '-200 -200 400 400');
+
+      const path = document.createElementNS(ns, 'path');
+      path.setAttribute('d', circlePath);
+      path.style.color = green;
+      path.classList.add('shape');
+
+      svg.appendChild(path);
+      grid.appendChild(svg);
+
+      const row = Math.floor(i / COLS);
+      const col = i % COLS;
+
+      svg.addEventListener('mouseenter', () => {
+        initAudio().then(() => playWoodbell(rowDetune[row], colFreq[col]));
+        anime.remove(path);
+        anime({
+          targets: path,
+          d: starPath,
+          color: white,
+          duration: 200,
+          easing: 'easeOutQuad'
+        });
+        path.classList.add('hovered');
+      });
+
+      svg.addEventListener('mouseleave', () => {
+        anime.remove(path);
+        anime({
+          targets: path,
+          d: circlePath,
+          color: green,
+          duration: 600,
+          easing: 'easeOutQuart'
+        });
+        path.classList.remove('hovered');
+      });
+    }
+  </script>
+
+</body>
+</html>
