@@ -52,11 +52,15 @@
     let woodbellBuffer = null;
 
     async function initAudio() {
-      if (audioCtx) return;
-      audioCtx = new AudioContext();
-      const response = await fetch('WoodBell-Clean.wav');
-      const arrayBuffer = await response.arrayBuffer();
-      woodbellBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+      if (!audioCtx) {
+        audioCtx = new AudioContext();
+        const response = await fetch('WoodBell-Clean.wav');
+        const arrayBuffer = await response.arrayBuffer();
+        woodbellBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+      }
+      if (audioCtx.state === 'suspended') {
+        await audioCtx.resume();
+      }
     }
 
     // Dorian mode: 1, b3, 4, 5, 6, b7 (semitones: 0, 3, 5, 7, 9, 10)
