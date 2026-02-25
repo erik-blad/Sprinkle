@@ -104,14 +104,14 @@
       }, { once: true });
     });
 
-    // Dorian mode rows: top = highest, bottom = lowest (semitones: 0, 3, 5, 7, 9, 10)
-    const rowDetune = [1000, 900, 700, 500, 300, 0]; // cents
+    // Pentatonic minor rows: top = highest, bottom = lowest (semitones: 0, 3, 5, 7, 10, 12)
+    const rowDetune = [1200, 1000, 700, 500, 300, 0]; // cents
 
-    // Dorian mode cols: left = lowest, right = highest (semitones: 0, 2, 3, 5, 7, 9)
-    const colDetune = [0, 200, 300, 500, 700, 900]; // cents
+    // Pentatonic minor cols: left = lowest, right = highest (semitones: 0, 3, 5, 7, 10, 12)
+    const colDetune = [0, 300, 500, 700, 1000, 1200]; // cents
 
     // Lowpass filter: left col = open/bright, right col = dark/muffled (log scale)
-    const colFreq = [20000, 8000, 3000, 1000, 400, 150]; // Hz
+    const colFreq = [20000, 8000, 3000, 1200, 600, 400]; // Hz
 
     function playWoodbell(detune, freq) {
       if (!audioCtx || !woodbellBuffer) return;
