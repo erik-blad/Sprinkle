@@ -8,6 +8,16 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
+    :root {
+      --stroke-width: 3px;
+      --glow-sm: 6px;
+      --glow-lg: 14px;
+      --glow-lit-sm: 12px;
+      --glow-lit-lg: 28px;
+      --glow-hover-sm: 18px;
+      --glow-hover-lg: 42px;
+    }
+
     body {
       background: #0f0f0f;
       display: flex;
@@ -32,14 +42,19 @@
     .shape {
       fill: none;
       stroke: currentColor;
-      stroke-width: 3;
+      stroke-width: var(--stroke-width);
       stroke-linecap: round;
-      filter: drop-shadow(0 0 6px currentColor) drop-shadow(0 0 14px currentColor);
-      transition: filter 0.3s ease;
+      filter: drop-shadow(0 0 var(--glow-sm) currentColor) drop-shadow(0 0 var(--glow-lg) currentColor);
+      transition: filter 0.3s ease, fill 0.15s ease;
+    }
+
+    .shape.lit {
+      fill: rgba(0, 255, 136, 0.02);
+      filter: drop-shadow(0 0 var(--glow-lit-sm) currentColor) drop-shadow(0 0 var(--glow-lit-lg) currentColor);
     }
 
     .shape.hovered {
-      filter: drop-shadow(0 0 18px currentColor) drop-shadow(0 0 42px currentColor);
+      filter: drop-shadow(0 0 var(--glow-hover-sm) currentColor) drop-shadow(0 0 var(--glow-hover-lg) currentColor);
     }
 
     #overlay {
@@ -63,7 +78,6 @@
       font-size: clamp(14px, 2vmin, 20px);
       color: #ffffff;
       letter-spacing: 0.15em;
-      text-transform: lowercase;
       pointer-events: none;
     }
 
@@ -71,17 +85,138 @@
       opacity: 0;
       pointer-events: none;
     }
+
+    /* Properties Panel */
+    #panel {
+      position: fixed;
+      right: 0;
+      top: 50%;
+      transform: translateY(-50%) translateX(calc(100% + 1px));
+      width: 260px;
+      background: rgba(10, 10, 10, 0.97);
+      border-left: 1px solid rgba(0, 255, 136, 0.25);
+      padding: 28px 22px;
+      font-family: 'Space Mono', monospace;
+      z-index: 200;
+      transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    #panel.open {
+      transform: translateY(-50%) translateX(0);
+    }
+
+    .panel-section {
+      margin-bottom: 28px;
+    }
+
+    .panel-section h3 {
+      font-size: 9px;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      color: rgba(0, 255, 136, 0.4);
+      margin-bottom: 18px;
+    }
+
+    .panel-row {
+      margin-bottom: 14px;
+    }
+
+    .panel-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      color: #00ff88;
+      margin-bottom: 7px;
+    }
+
+    .panel-label span {
+      color: rgba(0, 255, 136, 0.45);
+      font-size: 9px;
+    }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 2px;
+      background: rgba(0, 255, 136, 0.15);
+      outline: none;
+      cursor: pointer;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #00ff88;
+      box-shadow: 0 0 6px #00ff88;
+      cursor: pointer;
+    }
+
+    .panel-hint {
+      font-size: 9px;
+      letter-spacing: 0.12em;
+      color: rgba(0, 255, 136, 0.2);
+      text-align: center;
+      margin-top: 4px;
+    }
   </style>
 </head>
 <body>
 
-  <div id="overlay"><span>click me</span></div>
+  <div id="overlay"><span>Click</span></div>
   <div class="grid"></div>
+
+  <div id="panel">
+    <div class="panel-section">
+      <h3>audio</h3>
+      <div class="panel-row">
+        <div class="panel-label">filter strength <span id="filter-val">100%</span></div>
+        <input type="range" id="filter-strength" min="0" max="100" value="100">
+      </div>
+      <div class="panel-row">
+        <div class="panel-label">reverb <span id="reverb-val">0%</span></div>
+        <input type="range" id="reverb-level" min="0" max="100" value="0">
+      </div>
+    </div>
+    <div class="panel-section">
+      <h3>visual</h3>
+      <div class="panel-row">
+        <div class="panel-label">stroke width <span id="stroke-val">3</span></div>
+        <input type="range" id="stroke-width" min="1" max="10" value="3" step="0.5">
+      </div>
+      <div class="panel-row">
+        <div class="panel-label">glow intensity <span id="glow-val">100%</span></div>
+        <input type="range" id="glow-intensity" min="0" max="200" value="100">
+      </div>
+    </div>
+    <div class="panel-hint">press P to close</div>
+  </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
   <script>
     let audioCtx = null;
     let woodbellBuffer = null;
+    let convolver = null;
+    let wetGain = null;
+
+    // Panel state
+    let filterStrength = 1.0;
+    let reverbWet = 0.0;
+
+    function buildIR(ctx) {
+      const length = ctx.sampleRate * 3;
+      const ir = ctx.createBuffer(2, length, ctx.sampleRate);
+      for (let c = 0; c < 2; c++) {
+        const data = ir.getChannelData(c);
+        for (let i = 0; i < length; i++) {
+          data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, 2);
+        }
+      }
+      return ir;
+    }
 
     async function initAudio() {
       if (!audioCtx) {
@@ -89,6 +224,10 @@
         const response = await fetch('WoodBell-Clean.wav');
         const arrayBuffer = await response.arrayBuffer();
         woodbellBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+
+        convolver = audioCtx.createConvolver();
+        convolver.buffer = buildIR(audioCtx);
+        convolver.connect(audioCtx.destination);
       }
       if (audioCtx.state === 'suspended') {
         await audioCtx.resume();
@@ -110,10 +249,17 @@
     // Pentatonic minor cols: left = lowest, right = highest (semitones: 0, 3, 5, 7, 10, 12)
     const colDetune = [0, 300, 500, 700, 1000, 1200]; // cents
 
-    // Lowpass filter: left col = open/bright, right col = dark/muffled (log scale)
+    // Lowpass filter target frequencies per column
     const colFreq = [20000, 14000, 8000, 4000, 2000, 1000]; // Hz
 
-    function playWoodbell(detune, freq) {
+    // Reverb per row: top row = most wet, bottom row = dry
+    const rowReverb = [1.0, 0.75, 0.5, 0.25, 0.1, 0.0];
+
+    function getEffectiveFreq(col) {
+      return 20000 - (20000 - colFreq[col]) * filterStrength;
+    }
+
+    function playWoodbell(detune, freq, row) {
       if (!audioCtx || !woodbellBuffer) return;
       const source = audioCtx.createBufferSource();
       source.buffer = woodbellBuffer;
@@ -123,10 +269,60 @@
       filter.type = 'lowpass';
       filter.frequency.value = freq;
 
+      // Per-note wet gain scaled by row position and slider
+      const noteWet = audioCtx.createGain();
+      noteWet.gain.value = reverbWet * rowReverb[row];
+
       source.connect(filter);
-      filter.connect(audioCtx.destination);
+      filter.connect(audioCtx.destination); // dry
+      filter.connect(noteWet);              // wet path
+      noteWet.connect(convolver);
       source.start();
     }
+
+    // Panel toggle
+    const panel = document.getElementById('panel');
+    document.addEventListener('keydown', e => {
+      if (e.key === 'p' || e.key === 'P') panel.classList.toggle('open');
+    });
+
+    // Slider: filter strength
+    const filterSlider = document.getElementById('filter-strength');
+    const filterVal = document.getElementById('filter-val');
+    filterSlider.addEventListener('input', () => {
+      filterStrength = filterSlider.value / 100;
+      filterVal.textContent = filterSlider.value + '%';
+    });
+
+    // Slider: reverb
+    const reverbSlider = document.getElementById('reverb-level');
+    const reverbVal = document.getElementById('reverb-val');
+    reverbSlider.addEventListener('input', () => {
+      reverbWet = reverbSlider.value / 100;
+      reverbVal.textContent = reverbSlider.value + '%';
+    });
+
+    // Slider: stroke width
+    const strokeSlider = document.getElementById('stroke-width');
+    const strokeVal = document.getElementById('stroke-val');
+    strokeSlider.addEventListener('input', () => {
+      strokeVal.textContent = strokeSlider.value;
+      document.documentElement.style.setProperty('--stroke-width', strokeSlider.value + 'px');
+    });
+
+    // Slider: glow intensity
+    const glowSlider = document.getElementById('glow-intensity');
+    const glowVal = document.getElementById('glow-val');
+    glowSlider.addEventListener('input', () => {
+      glowVal.textContent = glowSlider.value + '%';
+      const g = glowSlider.value / 100;
+      document.documentElement.style.setProperty('--glow-sm',       `${6  * g}px`);
+      document.documentElement.style.setProperty('--glow-lg',       `${14 * g}px`);
+      document.documentElement.style.setProperty('--glow-lit-sm',   `${12 * g}px`);
+      document.documentElement.style.setProperty('--glow-lit-lg',   `${28 * g}px`);
+      document.documentElement.style.setProperty('--glow-hover-sm', `${18 * g}px`);
+      document.documentElement.style.setProperty('--glow-hover-lg', `${42 * g}px`);
+    });
 
     const COLS = 6;
     const ROWS = 6;
@@ -139,6 +335,7 @@
 
     const grid = document.querySelector('.grid');
     const ns = 'http://www.w3.org/2000/svg';
+    const paths = [];
 
     for (let i = 0; i < COLS * ROWS; i++) {
       const svg = document.createElementNS(ns, 'svg');
@@ -151,12 +348,20 @@
 
       svg.appendChild(path);
       grid.appendChild(svg);
+      paths.push(path);
 
       const row = Math.floor(i / COLS);
       const col = i % COLS;
 
       svg.addEventListener('mouseenter', () => {
-        initAudio().then(() => playWoodbell(rowDetune[row] + colDetune[col], colFreq[col]));
+        initAudio().then(() => playWoodbell(rowDetune[row] + colDetune[col], getEffectiveFreq(col), row));
+
+        paths.forEach((p, idx) => {
+          const r = Math.floor(idx / COLS);
+          const c = idx % COLS;
+          if ((r === row || c === col) && idx !== i) p.classList.add('lit');
+        });
+
         anime.remove(path);
         anime({
           targets: path,
@@ -169,6 +374,12 @@
       });
 
       svg.addEventListener('mouseleave', () => {
+        paths.forEach((p, idx) => {
+          const r = Math.floor(idx / COLS);
+          const c = idx % COLS;
+          if (r === row || c === col) p.classList.remove('lit');
+        });
+
         anime.remove(path);
         anime({
           targets: path,
